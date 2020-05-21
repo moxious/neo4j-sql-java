@@ -10,10 +10,32 @@ public class Neo4jSQLAccess {
     static final String USER = "neo4j";
     static final String PASS = "admin";
 
-    public static void main(String[] args) throws Exception {
+    public static void firstRecordFrom(Connection conn, String table) throws SQLException {
+        System.out.println("Querying table " + table);
+        Statement stmt = conn.createStatement();
+        ResultSet rs = stmt.executeQuery("SELECT * FROM " + table + " LIMIT 1");
 
+        ResultSetMetaData md = rs.getMetaData();
+        int cc = md.getColumnCount();
+
+        while(rs.next()) {
+            for (int x=1; x<cc; x++) {
+                String label = md.getColumnLabel(x);
+                String typeName = md.getColumnTypeName(x);
+                String val = rs.getString(x);
+
+                System.out.println("COLUMN " + label + " type " + typeName + " value " + val);
+            }
+        }
+
+        rs.close();
+        stmt.close();
+    }
+
+    public static void main(String[] args) throws Exception {
         Connection conn = null;
         Statement stmt = null;
+
         try {
             //STEP 2: Register JDBC driver
             Class.forName(JDBC_DRIVER);
@@ -22,28 +44,17 @@ public class Neo4jSQLAccess {
             System.out.println("Connecting to database...");
             conn = DriverManager.getConnection(DB_URL, USER, PASS);
 
-            //STEP 4: Execute a query
-            System.out.println("Creating statement...");
-            stmt = conn.createStatement();
-            String sql;
-            sql = "SELECT id, first, last, age FROM Employees";
-            ResultSet rs = stmt.executeQuery(sql);
+            DatabaseMetaData md = conn.getMetaData();
+            ResultSet rs = md.getTables(null, null, null, null);
 
-            //STEP 5: Extract data from result set
-            while (rs.next()) {
-                //Retrieve by column name
-                int id = rs.getInt("id");
-                int age = rs.getInt("age");
-                String first = rs.getString("first");
-                String last = rs.getString("last");
+            while(rs.next()) {
+                String schema = rs.getString("TABLE_SCHEM");
+                String name = rs.getString("TABLE_NAME");
 
-                //Display values
-                System.out.print("ID: " + id);
-                System.out.print(", Age: " + age);
-                System.out.print(", First: " + first);
-                System.out.println(", Last: " + last);
+                System.out.println("\n\nThis connection has a table named " + schema + "." + name);
+
+                firstRecordFrom(conn, name);
             }
-            //STEP 6: Clean-up environment
             rs.close();
             stmt.close();
             conn.close();
